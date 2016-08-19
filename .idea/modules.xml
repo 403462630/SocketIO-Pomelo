@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/PomeloExample.iml" filepath="$PROJECT_DIR$/PomeloExample.iml" />
+      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/pomelo/pomelo.iml" filepath="$PROJECT_DIR$/pomelo/pomelo.iml" />
+      <module fileurl="file://$PROJECT_DIR$/socketio/socketio.iml" filepath="$PROJECT_DIR$/socketio/socketio.iml" />
+    </modules>
+  </component>
+</project>
