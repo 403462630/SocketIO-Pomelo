@@ -3,6 +3,7 @@ package com.netease.pomelo;
 import io.socket.SocketIOException;
 import io.socket2.IOAcknowledge;
 import io.socket2.IOCallback;
+import io.socket2.IOMessage;
 import io.socket2.SocketIO;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
@@ -23,12 +24,12 @@ public class PomeloClient2 {
 	private final static String JSONARRAY_FLAG = "[";
 	private int reqId;
 	private SocketIO socket;
-	private Map<Integer, DataCallBack> cbs;
+	private Map<String, DataCallBack> cbs;
 	private Map<String, List<DataListener>> listeners;
 
 	public PomeloClient2(String url, int port) {
 		initSocket(url, port);
-		cbs = new HashMap<Integer, DataCallBack>();
+		cbs = new HashMap<String, DataCallBack>();
 		listeners = new HashMap<String, List<DataListener>>();
 	}
 
@@ -46,56 +47,48 @@ public class PomeloClient2 {
 		buff.append(":");
 		buff.append(port);
 		socket = new SocketIO(buff.toString());
-		socket.setCallback(new IOCallback() {
-			@Override
-			public void onDisconnect() {
-				logger.warning("------------onDisconnect");
-			}
-
-			@Override
-			public void onConnect() {
-				logger.warning("------------onConnect");
-			}
-
-			@Override
-			public void onConnectFailed() {
-				logger.warning("------------onConnectFailed");
-			}
-
-			@Override
-			public void onMessage(String message, IOAcknowledge ack) {
-				if (message.indexOf(JSONARRAY_FLAG) == 0) {
-					processMessageBatch(message);
-				} else {
-					processMessage(message);
-				}
-			}
-
-			@Override
-			public void onMessage(JSONObject json, IOAcknowledge ack) {
-
-			}
-
-			@Override
-			public void onMessageFailed(String message) {
-				logger.warning("------------onMessageFailed: " + message);
-			}
-
-			@Override
-			public void onMessageFailed(JSONObject json) {
-				logger.warning("------------onMessageFailed: " + json.toString());
-			}
-
-			@Override
-			public void on(String event, IOAcknowledge ack, Object... args) {
-
-			}
-
-			@Override
-			public void onError(SocketIOException socketIOException) {
-				logger.warning("------------onError");
-			}
-		});
+		socket.setFactory(new PomeloFactory());
+		//socket.setCallback(new IOCallback() {
+		//	@Override
+		//	public void onDisconnect() {
+		//		logger.warning("------------onDisconnect");
+		//	}
+        //
+		//	@Override
+		//	public void onConnect() {
+		//		logger.warning("------------onConnect");
+		//	}
+        //
+		//	@Override
+		//	public void onConnectFailed() {
+		//		logger.warning("------------onConnectFailed");
+		//	}
+        //
+		//	@Override
+		//	public void onMessage(IOMessage message, IOAcknowledge ack) {
+		//		processMessage((PomeloMessage) message);
+		//	}
+        //
+		//	@Override
+		//	public void onMessage(List<IOMessage> messages, IOAcknowledge ack) {
+		//		processMessageBatch(messages);
+		//	}
+        //
+		//	@Override
+		//	public void onMessageFailed(IOMessage message) {
+        //
+		//	}
+        //
+		//	@Override
+		//	public void on(String event, IOAcknowledge ack, Object... args) {
+        //
+		//	}
+        //
+		//	@Override
+		//	public void onError(SocketIOException socketIOException) {
+		//		logger.warning("------------onError");
+		//	}
+		//});
 	}
 
 	public void connect()  {
@@ -112,8 +105,8 @@ public class PomeloClient2 {
 	 * @param msg
 	 *            reqest message
 	 */
-	private void sendMessage(int reqId, String route, JSONObject msg) {
-		socket.send(Protocol.encode(reqId, route, msg));
+	private void sendMessage(int reqId, String route, String msg) {
+		socket.sendIOMessage(new PomeloMessage(reqId, route, msg));
 	}
 
 	/**
@@ -145,8 +138,8 @@ public class PomeloClient2 {
 		}
 		msg = filter(msg);
 		reqId++;
-		cbs.put(reqId, cb);
-		sendMessage(reqId, route, msg);
+		cbs.put(String.valueOf(reqId), cb);
+		sendMessage(reqId, route, msg.toString());
 	}
 
 	/**
@@ -190,40 +183,28 @@ public class PomeloClient2 {
 	 * 
 	 * @param msg
 	 */
-	private void processMessage(String msg) {
-		int id;
-		JSONObject jsonObject = null;
-		try {
-			jsonObject = new JSONObject(msg);
-			// request message
-			if (jsonObject.has("id")) {
-				id = jsonObject.getInt("id");
-				DataCallBack cb = cbs.get(id);
-				cb.responseData(jsonObject.getJSONObject("body"));
-				cbs.remove(id);
+	private void processMessage(PomeloMessage msg) {
+		if (msg.getReqId() != null) {
+			try {
+				DataCallBack cb = cbs.get(String.valueOf(msg.getReqId()));
+				cb.responseData(new JSONObject(msg.getText()));
+				cbs.remove(msg.getReqId());
+			} catch (JSONException e) {
+				e.printStackTrace();
 			}
-			// broadcast message
-			else
-				emit(jsonObject.getString("route"), jsonObject);
-		} catch (JSONException e) {
-			e.printStackTrace();
+		} else {
+			emit(msg.getRoute(), new JSONObject());
 		}
 	}
 
 	/**
 	 * Process message in batch.
-	 * 
+	 *
 	 * @param msgs
 	 */
-	private void processMessageBatch(String msgs) {
-		JSONArray jsonArray = null;
-		try {
-			jsonArray = new JSONArray(msgs);
-			for (int i = 0; i < jsonArray.length(); i++) {
-				processMessage(jsonArray.getJSONObject(i).toString());
-			}
-		} catch (JSONException e) {
-			e.printStackTrace();
+	private void processMessageBatch(List<IOMessage> msgs) {
+		for (IOMessage message : msgs) {
+			processMessage((PomeloMessage) message);
 		}
 	}
 

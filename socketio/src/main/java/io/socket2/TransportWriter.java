@@ -45,6 +45,9 @@ class TransportWriter {
         }
         if (writerThread != null && writerThread.isAlive()) {
             logger.info("WriterThread: " + writerThread.getName() + " is alive");
+            synchronized (queue) {
+                queue.notifyAll();
+            }
             return ;
         }
 
@@ -63,6 +66,9 @@ class TransportWriter {
     public void clearup() {
         ArrayList<IOPackage> list = nextIOPackageList();
         transportManager.handleClearup(list);
+        synchronized (queue) {
+            queue.notifyAll();
+        }
     }
 
     public void sendIOPackage(IOPackage message) {
@@ -74,8 +80,10 @@ class TransportWriter {
             logger.info("push message to queue Exception: " + e.getMessage());
             transportManager.handlePushFailed(message);
         }
-        synchronized (queue) {
-            queue.notifyAll();
+        if (!isStop) {
+            synchronized (queue) {
+                queue.notifyAll();
+            }
         }
     }
 

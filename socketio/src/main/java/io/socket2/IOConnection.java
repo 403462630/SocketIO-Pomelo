@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -33,6 +34,7 @@ public class IOConnection {
     /** Socket.io path. */
     public static final String SOCKET_IO_1 = "/socket.io/1/";
 
+    private final static String JSONARRAY_FLAG = "[";
     private static final int STATE_INIT = 0;
     private static final int STATE_HANDSHAKE = 1;
     private static final int STATE_CONNECTING = 2;
@@ -60,6 +62,16 @@ public class IOConnection {
     private HearbeatTimeoutTask heartbeatTimeoutTask;
     private Timer backgroundTimer;
     private ReconnectTask reconnectTask = null;
+    private SocketIOStrategy strategy = new DefaultIOStrategy();
+    private long reconnectCount;
+
+    public void setStrategy(SocketIOStrategy strategy) {
+        this.strategy = strategy;
+    }
+
+    SocketIOStrategy getStrategy() {
+        return strategy;
+    }
 
     private class ReconnectTask extends TimerTask {
 
@@ -104,7 +116,7 @@ public class IOConnection {
         return sessionId;
     }
 
-    private synchronized int getState() {
+    synchronized int getState() {
         return state;
     }
 
@@ -138,44 +150,59 @@ public class IOConnection {
     }
 
     public void transportMessage(String text) {
-        IOPackage message;
+        IOPackage ioPackage;
         try {
-            message = new IOPackage(text);
+            ioPackage = new IOPackage(text);
         } catch (Exception e) {
             logger.info("Garbage from server: " + text + ", " + e.getMessage());
             //error(new SocketIOException("Garbage from server: " + text, e));
             return;
         }
         resetTimeout();
-        transportManager.handleReceiverIOPackage(message);
-        switch (message.getType()) {
-            case IOPackageFactory.TYPE_DISCONNECT:
-                findCallback(message).onDisconnect();
-                break;
-            case IOPackageFactory.TYPE_CONNECT:
-                findCallback(message).onConnect();
-                break;
-            case IOPackageFactory.TYPE_HEARTBEAT:
-                sendPlain(IOPackageFactory.buildHeartbeatPacket());
-                break;
-            case IOPackageFactory.TYPE_MESSAGE:
-                findCallback(message).onMessage(message.getData(), remoteAcknowledge(message));
-                break;
-            case IOPackageFactory.TYPE_JSON_MESSAGE:
-                try {
-                    JSONObject obj = null;
-                    String data = message.getData();
-                    if (data.trim().equals("null") == false) {
-                        obj = new JSONObject(data);
-                    }
-                    findCallback(message).onMessage(obj, remoteAcknowledge(message));
-                } catch (JSONException e) {
-                    logger.warning("Malformated JSON received");
+        switch (ioPackage.getType()) {
+            case IOPackage.TYPE_DISCONNECT:
+                if (findCallback(ioPackage) != null) {
+                    findCallback(ioPackage).onDisconnect();
                 }
                 break;
-            case IOPackageFactory.TYPE_EVENT:
+            case IOPackage.TYPE_CONNECT:
+                transportManager.handleReceiverIOPackage(ioPackage);
+                findCallback(ioPackage).onConnect();
+                break;
+            case IOPackage.TYPE_HEARTBEAT:
+                sendPlain(IOPackage.buildHeartbeatPacket());
+                break;
+            case IOPackage.TYPE_MESSAGE:
+                if (ioPackage.getData().indexOf(JSONARRAY_FLAG) == 0) {
+                    try {
+                        JSONArray jsonArray = new JSONArray(ioPackage.getData());
+                        List<IOMessage> messages = new ArrayList<>();
+                        for (int i = 0; i < jsonArray.length(); i++) {
+                            IOMessage ioMessage = findSocketIO(ioPackage).getFactory().buildIOMessage(jsonArray.getJSONObject(i).toString(), false);
+                            ioPackage.setPrimaryKey(ioMessage.getPrimaryKey());
+                            transportManager.handleReceiverIOPackage(ioPackage);
+                            messages.add(ioMessage);
+                        }
+                        findCallback(ioPackage).onMessage(messages, remoteAcknowledge(ioPackage));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    IOMessage ioMessage = findSocketIO(ioPackage).getFactory().buildIOMessage(ioPackage.getData(), false);
+                    ioPackage.setPrimaryKey(ioMessage.getPrimaryKey());
+                    transportManager.handleReceiverIOPackage(ioPackage);
+                    findCallback(ioPackage).onMessage(ioMessage, remoteAcknowledge(ioPackage));
+                }
+                break;
+            case IOPackage.TYPE_JSON_MESSAGE:
+                IOMessage ioMessage = findSocketIO(ioPackage).getFactory().buildIOMessage(ioPackage.getData(), true);
+                ioPackage.setPrimaryKey(ioMessage.getPrimaryKey());
+                transportManager.handleReceiverIOPackage(ioPackage);
+                findCallback(ioPackage).onMessage(ioMessage, remoteAcknowledge(ioPackage));
+                break;
+            case IOPackage.TYPE_EVENT:
                 try {
-                    JSONObject event = new JSONObject(message.getData());
+                    JSONObject event = new JSONObject(ioPackage.getData());
                     Object[] argsArray;
                     if (event.has("args")) {
                         JSONArray args = event.getJSONArray("args");
@@ -188,13 +215,13 @@ public class IOConnection {
                         argsArray = new Object[0];
                     }
                     String eventName = event.getString("name");
-                    findCallback(message).on(eventName, remoteAcknowledge(message), argsArray);
+                    findCallback(ioPackage).on(eventName, remoteAcknowledge(ioPackage), argsArray);
                 } catch (JSONException e) {
                     logger.warning("Malformated JSON received: " + e.getMessage());
                 }
                 break;
-            case IOPackageFactory.TYPE_ACK:
-                String[] data = message.getData().split("\\+", 2);
+            case IOPackage.TYPE_ACK:
+                String[] data = ioPackage.getData().split("\\+", 2);
                 if (data.length == 2) {
                     try {
                         int id = Integer.parseInt(data[0]);
@@ -215,23 +242,23 @@ public class IOConnection {
                         logger.warning("Received malformated Acknowledge data!");
                     }
                 } else if (data.length == 1) {
-                    sendPlain(IOPackageFactory.buildAckPacket(message.getEndPoint(), data[0]));
+                    sendPlain(IOPackage.buildAckPacket(ioPackage.getEndPoint(), data[0]));
                 }
                 break;
-            case IOPackageFactory.TYPE_ERROR:
-                findCallback(message).onError(new SocketIOException(message.getData()));
+            case IOPackage.TYPE_ERROR:
+                findCallback(ioPackage).onError(new SocketIOException(ioPackage.getData()));
 
-                if (message.getData().endsWith("+0")) {
+                if (ioPackage.getData().endsWith("+0")) {
                     // We are advised to disconnect
                     setState(STATE_ON_ERROR);
                     //connect();
                     //cleanup();
                 }
                 break;
-            case IOPackageFactory.TYPE_NOOP:
+            case IOPackage.TYPE_NOOP:
                 break;
             default:
-                logger.warning("Unkown type received" + message.getType());
+                logger.warning("Unkown type received" + ioPackage.getType());
                 break;
         }
     }
@@ -242,7 +269,7 @@ public class IOConnection {
             if (getState() != STATE_ON_ERROR) {
                 setState(STATE_INTERRUPTED);
             }
-            connect();
+            reconnect();
         }
     }
 
@@ -276,7 +303,7 @@ public class IOConnection {
     }
 
 
-    private void connect() {
+    private synchronized void connect() {
         if (getState() == STATE_INIT || getState() == STATE_INVALID) {
             if (backgroundTimer != null) {
                 backgroundTimer.cancel();
@@ -290,14 +317,23 @@ public class IOConnection {
                 reconnectTask.cancel();
             }
             reconnectTask = new ReconnectTask();
-            backgroundTimer.schedule(reconnectTask, 5_000);
+            backgroundTimer.schedule(reconnectTask, strategy.reconnectPeriod());
+        }
+    }
+
+    private synchronized void reconnect() {
+        if (strategy.isAutoReconnectHandler() && (strategy.maxAutoReconnectCount() == null || strategy.maxAutoReconnectCount() >= reconnectCount)) {
+            reconnectCount++;
+            connect();
+        } else {
+            cleanup();
         }
     }
 
     private void socketsConnect() {
         for (SocketIO socket : sockets.values()) {
             if (!"".equals(socket.getNamespace())) {
-                sendPlain(IOPackageFactory.buildConnectPacket(socket.getNamespace()));
+                sendPlain(IOPackage.buildConnectPacket(socket.getNamespace()));
             }
         }
     }
@@ -359,14 +395,14 @@ public class IOConnection {
 
     private void handshakeError() {
         setState(STATE_HANDSHAKE_ERROR);
-        connect();
+        reconnect();
     }
 
     private synchronized void sendPlain(IOPackage message) {
         if (getState() != STATE_INVALID && getState() != STATE_INIT) {
             transportManager.sendIOPackage(message);
         } else {
-            if (message.getType() == IOPackageFactory.TYPE_CONNECT) {
+            if (message.getType() == IOPackage.TYPE_CONNECT) {
                 connect();
                 transportManager.sendIOPackage(message);
             } else {
@@ -375,24 +411,16 @@ public class IOConnection {
         }
     }
 
-    public void send(SocketIO socket, IOAcknowledge ack, JSONObject json) {
-        IOPackage message = new IOPackage(IOPackageFactory.TYPE_JSON_MESSAGE, socket.getNamespace(), json.toString());
-        synthesizeAck(message, ack);
-        sendPlain(message);
-    }
-
-    public void send(SocketIO socket, IOAcknowledge ack, String text) {
-        IOPackage message = new IOPackage(IOPackageFactory.TYPE_MESSAGE, socket.getNamespace(), text);
-        synthesizeAck(message, ack);
-        sendPlain(message);
+    public void sendIOMessage(SocketIO socket, IOAcknowledge ack, IOMessage message) {
+        IOPackage ioPackage = IOPackage.buildIOMessagePacket(socket.getNamespace(), message);
+        synthesizeAck(ioPackage, ack);
+        sendPlain(ioPackage);
     }
 
     public void emit(SocketIO socket, String event, IOAcknowledge ack,
             Object... args) {
         try {
-            JSONObject json = new JSONObject().put("name", event).put("args", new JSONArray(Arrays.asList(args)));
-            IOPackage
-                    message = new IOPackage(IOPackageFactory.TYPE_EVENT, socket.getNamespace(), json.toString());
+            IOPackage message = IOPackage.buildEventPacket(socket.getNamespace(), event, args);
             synthesizeAck(message, ack);
             sendPlain(message);
         } catch (JSONException e) {
@@ -426,7 +454,7 @@ public class IOConnection {
                 for (Object o : args) {
                     try {
                         array.put(o == null ? JSONObject.NULL : o);
-                        IOPackage ackMsg = new IOPackage(IOPackageFactory.TYPE_ACK, endPoint, id + array.toString());
+                        IOPackage ackMsg = IOPackage.buildAckPacket(endPoint, id + array.toString());
                         sendPlain(ackMsg);
                     } catch (Exception e) {
                         logger.info("You can only put values in IOAcknowledge.ack() which can be handled by JSONArray.put()");
@@ -497,7 +525,7 @@ public class IOConnection {
         }
         sockets.put(namespace, socket);
         socket.setHeaders(headers);
-        IOPackage message = IOPackageFactory.buildConnectPacket(socket.getNamespace());
+        IOPackage message = IOPackage.buildConnectPacket(socket.getNamespace());
         sendPlain(message);
         return true;
     }
@@ -510,7 +538,7 @@ public class IOConnection {
      *            the socket to be shut down
      */
     public synchronized void unregister(SocketIO socket) {
-        IOPackage message = IOPackageFactory.buildDisconnectPacket(socket.getNamespace());
+        IOPackage message = IOPackage.buildDisconnectPacket(socket.getNamespace());
         sendPlain(message);
         sockets.remove(socket.getNamespace());
         socket.getCallback().onDisconnect();
@@ -520,6 +548,10 @@ public class IOConnection {
         }
     }
 
+    public boolean isConnected() {
+        return getState() == STATE_CONNECTED;
+    }
+
     private void cleanup() {
         setState(STATE_INVALID);
         if (transportManager != null) {
@@ -527,9 +559,9 @@ public class IOConnection {
         }
         if (transport != null) {
             transport.disconnect();
-            for (SocketIO socket : sockets.values()) {
-                socket.getCallback().onDisconnect();
-            }
+        }
+        for (SocketIO socket : sockets.values()) {
+            socket.getCallback().onDisconnect();
         }
         synchronized (connections) {
             List<IOConnection> con = connections.get(url.toString());
@@ -546,7 +578,7 @@ public class IOConnection {
     }
 
     private IOCallback findCallback(IOPackage message) {
-        SocketIO socket = sockets.get(message.getEndPoint());
+        SocketIO socket = findSocketIO(message);
         if (socket == null) {
             logger.info("Cannot find socket for '" + message.getEndPoint() + "'");
             return null;
@@ -554,16 +586,23 @@ public class IOConnection {
         return socket.getCallback();
     }
 
+    SocketIO findSocketIO(IOPackage message) {
+        return sockets.get(message.getEndPoint());
+    }
+
+    SocketIO findSocketIO(String endPoint) {
+        return sockets.get(endPoint);
+    }
+
     void handleFailedIOPackage(IOPackage message) {
-        if (message.getType() == IOPackageFactory.TYPE_CONNECT) {
-            findCallback(message).onConnectFailed();
-        } else if (message.getType() == IOPackageFactory.TYPE_MESSAGE) {
-            findCallback(message).onMessageFailed(message.getData());
-        } else if (message.getType() == IOPackageFactory.TYPE_JSON_MESSAGE) {
-            try {
-                findCallback(message).onMessageFailed(new JSONObject(message.getData()));
-            } catch (JSONException e) {
-                e.printStackTrace();
+        SocketIO socketIO = findSocketIO(message);
+        if (socketIO != null) {
+            if (message.getType() == IOPackage.TYPE_CONNECT) {
+                socketIO.getCallback().onConnectFailed();
+            } else if (message.getType() == IOPackage.TYPE_MESSAGE) {
+                socketIO.getCallback().onMessageFailed(message.getTempMessage());
+            } else if (message.getType() == IOPackage.TYPE_JSON_MESSAGE) {
+                socketIO.getCallback().onMessageFailed(message.getTempMessage());
             }
         }
     }

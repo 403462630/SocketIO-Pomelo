@@ -12,16 +12,6 @@ class TransportManager {
     private IOConnection connection;
     private IOTransport transport;
     private TransportWriter transportWriter;
-    /** 是否有重发机制 */
-    private boolean resendFlag = false;
-    /** 是否有超时处理机制 */
-    private boolean timeoutFlag = false;
-    /** 是否有自定义的心跳机制，注意 socketio自带心跳机制，且无法进行任何设置 */
-    private boolean heartbeatFlag = false;
-
-    /** 最大重发次数 */
-    private int maxResendCount = 3;
-    private long timeout = 60_000;
 
     private HashMap<String, IOPacketTask> map = new HashMap<>();
 
@@ -34,26 +24,11 @@ class TransportManager {
         this.transport = transport;
     }
 
-    public void setResendFlag(boolean resendFlag) {
-        this.resendFlag = resendFlag;
-    }
-
-    public void setTimeoutFlag(boolean timeoutFlag) {
-        this.timeoutFlag = timeoutFlag;
-    }
-
-    public void setHeartbeatFlag(boolean heartbeatFlag) {
-        this.heartbeatFlag = heartbeatFlag;
-    }
-
-    public void setMaxResendCount(int maxResendCount) {
-        this.maxResendCount = maxResendCount;
-    }
-
     public void sendIOPackage(IOPackage message) {
         if (message != null) {
-            if (timeoutFlag && message.hasTimeoutTask()) {
-                startTimeoutTask(message, timeout);
+            if (connection.getStrategy().isTimeoutHandler() && message.hasTimeoutTask()) {
+                stopTimeoutTask(message);
+                startTimeoutTask(message, connection.getStrategy().timeout());
             }
             transportWriter.sendIOPackage(message);
         }
@@ -108,10 +83,10 @@ class TransportManager {
     }
 
     public void handlePushFailed(IOPackage message) {
-        if (timeoutFlag && message.hasTimeoutTask()) {
+        if (connection.getStrategy().isTimeoutHandler() && message.hasTimeoutTask()) {
             stopTimeoutTask(message);
         }
-        if (resendFlag) {
+        if (connection.getStrategy().isResendHandler()) {
             resendIOPackage(message);
         } else {
             connection.handleFailedIOPackage(message);
@@ -119,7 +94,7 @@ class TransportManager {
     }
 
     private void resendIOPackage(IOPackage message) {
-        if (message.getFailedCount() < maxResendCount && message.hasResendHandler()) {
+        if (message.getFailedCount() < connection.getStrategy().maxResendCount() && message.hasResendHandler()) {
             message.setFailedCount(message.getFailedCount() + 1);
             sendIOPackage(message);
         } else {
@@ -130,10 +105,10 @@ class TransportManager {
     public void handleSendBulkError(ArrayList<IOPackage> list) {
         if (list != null && !list.isEmpty()) {
             for (IOPackage message : list) {
-                if (timeoutFlag && message.hasTimeoutTask()) {
+                if (connection.getStrategy().isTimeoutHandler() && message.hasTimeoutTask()) {
                     stopTimeoutTask(message);
                 }
-                if (resendFlag) {
+                if (connection.getStrategy().isResendHandler()) {
                     resendIOPackage(message);
                 } else {
                     connection.handleFailedIOPackage(message);
@@ -143,10 +118,10 @@ class TransportManager {
     }
 
     public void handleSendError(IOPackage message) {
-        if (timeoutFlag && message.hasTimeoutTask()) {
+        if (connection.getStrategy().isTimeoutHandler() && message.hasTimeoutTask()) {
             stopTimeoutTask(message);
         }
-        if (resendFlag) {
+        if (connection.getStrategy().isResendHandler()) {
             resendIOPackage(message);
         } else {
             connection.handleFailedIOPackage(message);
@@ -159,7 +134,7 @@ class TransportManager {
     }
 
     public void handleReceiverIOPackage(IOPackage message) {
-        if (timeoutFlag && message.hasTimeoutTask()) {
+        if (connection.getStrategy().isTimeoutHandler() && message.hasTimeoutTask()) {
             stopTimeoutTask(message);
         }
     }

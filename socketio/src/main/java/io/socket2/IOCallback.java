@@ -9,6 +9,7 @@
 package io.socket2;
 
 import io.socket.SocketIOException;
+import java.util.List;
 import org.json.JSONObject;
 
 /**
@@ -27,26 +28,12 @@ public interface IOCallback {
 	void onConnect();
 
 	void onConnectFailed();
-	
-	/**
-	 * On message. Called when the server sends String data.
-	 *
-	 * @param message the message.
-	 * @param ack an {@link io.socket.IOAcknowledge} instance, may be <code>null</code> if there's none
-	 */
-	void onMessage(String message, IOAcknowledge ack);
 
-	/**
-	 * On message. Called when the server sends JSON data.
-	 *
-	 * @param json JSON object sent by server.
-	 * @param ack an {@link io.socket.IOAcknowledge} instance, may be <code>null</code> if there's none
-	 */
-	void onMessage(JSONObject json, IOAcknowledge ack);
+	void onMessage(IOMessage message, IOAcknowledge ack);
 
-	void onMessageFailed(String message);
+	void onMessage(List<IOMessage> messages, IOAcknowledge ack);
 
-	void onMessageFailed(JSONObject json);
+	void onMessageFailed(IOMessage message);
 
 	/**
 	 * On [Event]. Called when server emits an event.

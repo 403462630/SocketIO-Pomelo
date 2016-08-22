@@ -104,7 +104,7 @@ public class PomeloClient {
 	 *            reqest message
 	 */
 	private void sendMessage(int reqId, String route, JSONObject msg) {
-		socket.send(Protocol.encode(reqId, route, msg));
+		//socket.send(Protocol.encode(reqId, route, msg));
 	}
 
 	/**

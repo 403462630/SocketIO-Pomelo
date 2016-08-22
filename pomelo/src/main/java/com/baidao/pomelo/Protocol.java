@@ -1,6 +1,4 @@
-package com.netease.pomelo;
-
-import org.json.JSONObject;
+package com.baidao.pomelo;
 
 public class Protocol {
 	private final static int HEADER = 5;
