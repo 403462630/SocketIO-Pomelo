@@ -15,11 +15,11 @@ class WebsocketTransport extends WebSocketClient implements IOTransport {
     private final static Pattern PATTERN_HTTP = Pattern.compile("^http");
     public static final String TRANSPORT_NAME = "websocket";
     private IOConnection connection;
+
     public static IOTransport create(URL url, IOConnection connection) {
         URI uri = URI.create(
-                PATTERN_HTTP.matcher(url.toString()).replaceFirst("ws")
-                + IOConnection.SOCKET_IO_1 + TRANSPORT_NAME
-                + "/" + connection.getSessionId());
+                PATTERN_HTTP.matcher(url.toString()).replaceFirst("ws") + IOConnection.SOCKET_IO_1
+                        + TRANSPORT_NAME + "/" + connection.getSessionId());
 
         return new WebsocketTransport(uri, connection);
     }
@@ -28,8 +28,8 @@ class WebsocketTransport extends WebSocketClient implements IOTransport {
         super(uri);
         this.connection = connection;
         SSLContext context = connection.getSslContext();
-        if("wss".equals(uri.getScheme()) && context != null) {
-	        this.setWebSocketFactory(new DefaultSSLWebSocketClientFactory(context));
+        if ("wss".equals(uri.getScheme()) && context != null) {
+            this.setWebSocketFactory(new DefaultSSLWebSocketClientFactory(context));
         }
     }
 
@@ -71,8 +71,10 @@ class WebsocketTransport extends WebSocketClient implements IOTransport {
 
     @Override
     public void onClose(int code, String reason, boolean remote) {
-        IOConnection.logger.warning("WebsocketTransport--onClose, code: " + code + ", reason: " + reason + ", remote: " + remote);
-        if(connection != null) {
+        IOConnection.logger.warning(
+                "WebsocketTransport--onClose, code: " + code + ", reason: " + reason + ", remote: "
+                        + remote);
+        if (connection != null) {
             connection.transportDisconnected();
         }
     }
@@ -80,15 +82,17 @@ class WebsocketTransport extends WebSocketClient implements IOTransport {
     @Override
     public void onMessage(String text) {
         IOConnection.logger.warning("< " + text);
-        if(connection != null) {
+        if (connection != null) {
             connection.transportMessage(text);
         }
     }
 
     @Override
     public void onOpen(ServerHandshake handshakedata) {
-        IOConnection.logger.warning("WebsocketTransport--onOpen: " + handshakedata.getHttpStatus() + ", " + handshakedata.getHttpStatusMessage());
-        if(connection != null) {
+        IOConnection.logger.warning(
+                "WebsocketTransport--onOpen: " + handshakedata.getHttpStatus() + ", "
+                        + handshakedata.getHttpStatusMessage());
+        if (connection != null) {
             connection.transportConnected();
         }
     }
@@ -102,7 +106,7 @@ class WebsocketTransport extends WebSocketClient implements IOTransport {
     public void onError(Exception ex) {
         // TODO Auto-generated method stub
         IOConnection.logger.warning("WebsocketTransport--onError: " + ex.getMessage());
-        if(connection != null) {
+        if (connection != null) {
             connection.transportError(ex);
         }
     }

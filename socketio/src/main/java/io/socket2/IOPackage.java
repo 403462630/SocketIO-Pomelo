@@ -39,7 +39,7 @@ public class IOPackage {
     public static final int TYPE_NOOP = 8;
 
     private final static String JSONARRAY_FLAG = "[";
-    /** 发送失败次数  */
+    /** 发送失败次数 */
     private int failedCount;
     /** 是否已过期 */
     private boolean isExpread;
@@ -61,16 +61,12 @@ public class IOPackage {
     }
 
     final boolean hasTimeoutTask() {
-        return  (type == TYPE_MESSAGE
-                || type == TYPE_JSON_MESSAGE
-                || type == TYPE_CONNECT)
+        return (type == TYPE_MESSAGE || type == TYPE_JSON_MESSAGE || type == TYPE_CONNECT)
                 && getPrimaryKey() != null;
     }
 
     final boolean hasResendHandler() {
-        return type == TYPE_MESSAGE
-                || type == TYPE_JSON_MESSAGE
-                || type == TYPE_EVENT;
+        return type == TYPE_MESSAGE || type == TYPE_JSON_MESSAGE || type == TYPE_EVENT;
     }
 
     private int type;
@@ -199,8 +195,8 @@ public class IOPackage {
 
     public static IOPackage buildEventPacket(String endPoint, String eventName, Object... args)
             throws JSONException {
-        final JSONObject json = new JSONObject().put("name", eventName).put("args", new JSONArray(
-                    Arrays.asList(args)));
+        final JSONObject json = new JSONObject().put("name", eventName)
+                .put("args", new JSONArray(Arrays.asList(args)));
         return new IOPackage(TYPE_EVENT, endPoint, new IOMessageAdapter() {
             @Override
             public String toText() {
@@ -217,5 +213,4 @@ public class IOPackage {
             }
         });
     }
-
 }

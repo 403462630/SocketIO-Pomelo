@@ -18,5 +18,4 @@ public class IOMessageAdapter implements IOMessage {
     public boolean isJsonText() {
         return false;
     }
-
 }

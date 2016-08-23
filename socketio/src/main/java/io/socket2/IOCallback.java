@@ -16,38 +16,40 @@ import org.json.JSONObject;
  * The Interface IOCallback. A callback interface to SocketIO
  */
 public interface IOCallback {
-	
-	/**
-	 * On disconnect. Called when the socket disconnects and there are no further attempts to reconnect
-	 */
-	void onDisconnect();
-	
-	/**
-	 * On connect. Called when the socket becomes ready so it is now able to receive data
-	 */
-	void onConnect();
 
-	void onConnectFailed();
+    /**
+     * On disconnect. Called when the socket disconnects and there are no further attempts to
+     * reconnect
+     */
+    void onDisconnect();
 
-	void onMessage(IOMessage message, IOAcknowledge ack);
+    /**
+     * On connect. Called when the socket becomes ready so it is now able to receive data
+     */
+    void onConnect();
 
-	void onMessage(List<IOMessage> messages, IOAcknowledge ack);
+    void onConnectFailed();
 
-	void onMessageFailed(IOMessage message);
+    void onMessage(IOMessage message, IOAcknowledge ack);
 
-	/**
-	 * On [Event]. Called when server emits an event.
-	 *
-	 * @param event Name of the event
-	 * @param ack an {@link io.socket.IOAcknowledge} instance, may be <code>null</code> if there's none
-	 * @param args Arguments of the event
-	 */
-	void on(String event, IOAcknowledge ack, Object... args);
-	
-	/**
-	 * On error. Called when socket is in an undefined state. No reconnect attempts will be made.
-	 *
-	 * @param socketIOException the last exception describing the error
-	 */
-	void onError(SocketIOException socketIOException);
+    void onMessage(List<IOMessage> messages, IOAcknowledge ack);
+
+    void onMessageFailed(IOMessage message);
+
+    /**
+     * On [Event]. Called when server emits an event.
+     *
+     * @param event Name of the event
+     * @param ack an {@link io.socket.IOAcknowledge} instance, may be <code>null</code> if there's
+     * none
+     * @param args Arguments of the event
+     */
+    void on(String event, IOAcknowledge ack, Object... args);
+
+    /**
+     * On error. Called when socket is in an undefined state. No reconnect attempts will be made.
+     *
+     * @param socketIOException the last exception describing the error
+     */
+    void onError(SocketIOException socketIOException);
 }

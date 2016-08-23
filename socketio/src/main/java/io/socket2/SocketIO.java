@@ -14,7 +14,7 @@ import javax.net.ssl.SSLContext;
  * @created on 16-8-18
  * @desc desc
  */
-public class SocketIO implements IOCallback{
+public class SocketIO implements IOCallback {
 
     public static final int STATE_CONNECTING = 1;
     public static final int STATE_CONNECTED = 2;
@@ -122,8 +122,7 @@ public class SocketIO implements IOCallback{
         }
         try {
             URL tempUrl = new URL(url);
-            final String origin = tempUrl.getProtocol() + "://"
-                    + tempUrl.getAuthority();
+            final String origin = tempUrl.getProtocol() + "://" + tempUrl.getAuthority();
             this.namespace = tempUrl.getPath();
             if (this.namespace.equals("/")) {
                 this.namespace = "";
@@ -169,10 +168,9 @@ public class SocketIO implements IOCallback{
 
     public SocketIO addHeader(String key, String value) {
         if (this.connection != null) {
-            throw new RuntimeException(
-                    "You may only set headers before connecting.\n"
-                            + " Try to use new SocketIO().addHeader(key, value).connect(host, callback) "
-                            + "instead of SocketIO(host, callback).addHeader(key, value)");
+            throw new RuntimeException("You may only set headers before connecting.\n"
+                                               + " Try to use new SocketIO().addHeader(key, value).connect(host, callback) "
+                                               + "instead of SocketIO(host, callback).addHeader(key, value)");
         }
         this.headers.setProperty(key, value);
         return this;
@@ -197,8 +195,7 @@ public class SocketIO implements IOCallback{
         this.connection.emit(this, event, null, args);
     }
 
-    public void emit(String event, IOAcknowledge ack,
-            Object... args) {
+    public void emit(String event, IOAcknowledge ack, Object... args) {
         this.connection.emit(this, event, ack, args);
     }
 
@@ -250,7 +247,7 @@ public class SocketIO implements IOCallback{
 
     }
 
-    public static interface ConnectionListener{
+    public static interface ConnectionListener {
         void onDisconnect();
 
         void onConnect();
@@ -266,12 +263,13 @@ public class SocketIO implements IOCallback{
         void onMessageFailed(IOMessage message);
     }
 
-    public static interface EventListener{
+    public static interface EventListener {
         /**
          * On [Event]. Called when server emits an event.
          *
          * @param event Name of the event
-         * @param ack an {@link io.socket.IOAcknowledge} instance, may be <code>null</code> if there's none
+         * @param ack an {@link io.socket.IOAcknowledge} instance, may be <code>null</code> if
+         * there's none
          * @param args Arguments of the event
          */
         void on(String event, IOAcknowledge ack, Object[] args);

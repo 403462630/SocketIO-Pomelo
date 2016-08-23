@@ -9,5 +9,6 @@ import org.json.JSONObject;
  */
 public interface SocketIOFactory {
     public IOMessage createHeartbeat();
+
     public IOMessage buildIOMessage(String text, boolean isJsonText);
 }

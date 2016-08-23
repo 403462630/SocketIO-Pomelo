@@ -48,7 +48,7 @@ class TransportWriter {
             synchronized (queue) {
                 queue.notifyAll();
             }
-            return ;
+            return;
         }
 
         writerThread = new Thread(new Runnable() {
@@ -108,7 +108,7 @@ class TransportWriter {
     }
 
     private void write() {
-        while(!isStop) {
+        while (!isStop) {
             if (flag && transport.canSendBulk()) {
                 flag = false;
                 ArrayList<IOPackage> list = nextIOPackageList();

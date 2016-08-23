@@ -14,5 +14,4 @@ public interface IOMessage {
     public String getPrimaryKey();
 
     public boolean isJsonText();
-
 }

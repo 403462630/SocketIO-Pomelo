@@ -46,7 +46,8 @@ public class IOConnection {
     private int state = STATE_INIT;
 
     private SSLContext sslContext = null;
-    private static HashMap<String, List<IOConnection>> connections = new HashMap<String, List<IOConnection>>();
+    private static HashMap<String, List<IOConnection>> connections =
+            new HashMap<String, List<IOConnection>>();
     private URL url;
     private IOTransport transport;
     private int nextId = 1;
@@ -79,10 +80,11 @@ public class IOConnection {
         public void run() {
             logger.info("reconnecting....... ");
             boolean handshakeFlag = true;
-            if (getState() == STATE_INIT || getState() == STATE_INVALID || getState() == STATE_HANDSHAKE_ERROR || getState() == STATE_ON_ERROR) {
+            if (getState() == STATE_INIT || getState() == STATE_INVALID
+                    || getState() == STATE_HANDSHAKE_ERROR || getState() == STATE_ON_ERROR) {
                 handshakeFlag = handshake();
             }
-            if(handshakeFlag) {
+            if (handshakeFlag) {
                 connectTransport();
             }
         }
@@ -102,8 +104,7 @@ public class IOConnection {
         }
         if (getState() != STATE_INVALID) {
             heartbeatTimeoutTask = new HearbeatTimeoutTask();
-            backgroundTimer.schedule(heartbeatTimeoutTask, closingTimeout
-                    + heartbeatTimeout);
+            backgroundTimer.schedule(heartbeatTimeoutTask, closingTimeout + heartbeatTimeout);
         }
     }
 
@@ -178,7 +179,8 @@ public class IOConnection {
                         JSONArray jsonArray = new JSONArray(ioPackage.getData());
                         List<IOMessage> messages = new ArrayList<>();
                         for (int i = 0; i < jsonArray.length(); i++) {
-                            IOMessage ioMessage = findSocketIO(ioPackage).getFactory().buildIOMessage(jsonArray.getJSONObject(i).toString(), false);
+                            IOMessage ioMessage = findSocketIO(ioPackage).getFactory()
+                                    .buildIOMessage(jsonArray.getJSONObject(i).toString(), false);
                             ioPackage.setPrimaryKey(ioMessage.getPrimaryKey());
                             transportManager.handleReceiverIOPackage(ioPackage);
                             messages.add(ioMessage);
@@ -188,14 +190,16 @@ public class IOConnection {
                         e.printStackTrace();
                     }
                 } else {
-                    IOMessage ioMessage = findSocketIO(ioPackage).getFactory().buildIOMessage(ioPackage.getData(), false);
+                    IOMessage ioMessage = findSocketIO(ioPackage).getFactory()
+                            .buildIOMessage(ioPackage.getData(), false);
                     ioPackage.setPrimaryKey(ioMessage.getPrimaryKey());
                     transportManager.handleReceiverIOPackage(ioPackage);
                     findCallback(ioPackage).onMessage(ioMessage, remoteAcknowledge(ioPackage));
                 }
                 break;
             case IOPackage.TYPE_JSON_MESSAGE:
-                IOMessage ioMessage = findSocketIO(ioPackage).getFactory().buildIOMessage(ioPackage.getData(), true);
+                IOMessage ioMessage = findSocketIO(ioPackage).getFactory()
+                        .buildIOMessage(ioPackage.getData(), true);
                 ioPackage.setPrimaryKey(ioMessage.getPrimaryKey());
                 transportManager.handleReceiverIOPackage(ioPackage);
                 findCallback(ioPackage).onMessage(ioMessage, remoteAcknowledge(ioPackage));
@@ -208,8 +212,9 @@ public class IOConnection {
                         JSONArray args = event.getJSONArray("args");
                         argsArray = new Object[args.length()];
                         for (int i = 0; i < args.length(); i++) {
-                            if (args.isNull(i) == false)
+                            if (args.isNull(i) == false) {
                                 argsArray[i] = args.get(i);
+                            }
                         }
                     } else {
                         argsArray = new Object[0];
@@ -226,9 +231,9 @@ public class IOConnection {
                     try {
                         int id = Integer.parseInt(data[0]);
                         IOAcknowledge ack = acknowledge.get(id);
-                        if (ack == null)
+                        if (ack == null) {
                             logger.warning("Received unknown ack packet");
-                        else {
+                        } else {
                             JSONArray array = new JSONArray(data[1]);
                             Object[] args = new Object[array.length()];
                             for (int i = 0; i < args.length; i++) {
@@ -237,7 +242,8 @@ public class IOConnection {
                             ack.ack(args);
                         }
                     } catch (NumberFormatException e) {
-                        logger.warning("Received malformated Acknowledge! This is potentially filling up the acknowledges!");
+                        logger.warning(
+                                "Received malformated Acknowledge! This is potentially filling up the acknowledges!");
                     } catch (JSONException e) {
                         logger.warning("Received malformated Acknowledge data!");
                     }
@@ -302,7 +308,6 @@ public class IOConnection {
         transport = null;
     }
 
-
     private synchronized void connect() {
         if (getState() == STATE_INIT || getState() == STATE_INVALID) {
             if (backgroundTimer != null) {
@@ -310,7 +315,8 @@ public class IOConnection {
             }
             backgroundTimer = new Timer("backgroundTimer");
             new ConnectThread().start();
-        } else if (getState() == STATE_INTERRUPTED || getState() == STATE_HANDSHAKE_ERROR || getState() == STATE_ON_ERROR) {
+        } else if (getState() == STATE_INTERRUPTED || getState() == STATE_HANDSHAKE_ERROR
+                || getState() == STATE_ON_ERROR) {
             invalidateTransport();
             transportManager.stop();
             if (reconnectTask != null) {
@@ -322,7 +328,8 @@ public class IOConnection {
     }
 
     private synchronized void reconnect() {
-        if (strategy.isAutoReconnectHandler() && (strategy.maxAutoReconnectCount() == null || strategy.maxAutoReconnectCount() >= reconnectCount)) {
+        if (strategy.isAutoReconnectHandler() && (strategy.maxAutoReconnectCount() == null
+                || strategy.maxAutoReconnectCount() >= reconnectCount)) {
             reconnectCount++;
             connect();
         } else {
@@ -348,7 +355,8 @@ public class IOConnection {
         } else if (protocols.contains(XhrTransport.TRANSPORT_NAME)) {
             transport = XhrTransport.create(url, this);
         } else {
-            logger.info("connectTransport error: Server supports no available transports. You should reconfigure the server to support a available transport");
+            logger.info(
+                    "connectTransport error: Server supports no available transports. You should reconfigure the server to support a available transport");
             cleanup();
             return;
         }
@@ -364,16 +372,15 @@ public class IOConnection {
             url = new URL(IOConnection.this.url.toString() + SOCKET_IO_1);
             connection = url.openConnection();
             if (connection instanceof HttpsURLConnection) {
-                ((HttpsURLConnection) connection)
-                        .setSSLSocketFactory(sslContext.getSocketFactory());
+                ((HttpsURLConnection) connection).setSSLSocketFactory(
+                        sslContext.getSocketFactory());
             }
             connection.setConnectTimeout(connectTimeout);
             connection.setReadTimeout(connectTimeout);
 
 			/* Setting the request headers */
             for (Map.Entry<Object, Object> entry : headers.entrySet()) {
-                connection.setRequestProperty((String) entry.getKey(),
-                                              (String) entry.getValue());
+                connection.setRequestProperty((String) entry.getKey(), (String) entry.getValue());
             }
 
             InputStream stream = connection.getInputStream();
@@ -417,8 +424,7 @@ public class IOConnection {
         sendPlain(ioPackage);
     }
 
-    public void emit(SocketIO socket, String event, IOAcknowledge ack,
-            Object... args) {
+    public void emit(SocketIO socket, String event, IOAcknowledge ack, Object... args) {
         try {
             IOPackage message = IOPackage.buildEventPacket(socket.getNamespace(), event, args);
             synthesizeAck(message, ack);
@@ -428,7 +434,6 @@ public class IOConnection {
             //        "Error while emitting an event. Make sure you only try to send arguments, which can be serialized into JSON."));
             logger.warning("emit error: " + e.getMessage());
         }
-
     }
 
     private void synthesizeAck(IOPackage message, IOAcknowledge ack) {
@@ -441,10 +446,11 @@ public class IOConnection {
 
     private IOAcknowledge remoteAcknowledge(IOPackage message) {
         String _id = message.getId();
-        if (_id.equals(""))
+        if (_id.equals("")) {
             return null;
-        else if (_id.endsWith("+") == false)
+        } else if (_id.endsWith("+") == false) {
             _id = _id + "+";
+        }
         final String id = _id;
         final String endPoint = message.getEndPoint();
         return new IOAcknowledge() {
@@ -454,10 +460,12 @@ public class IOConnection {
                 for (Object o : args) {
                     try {
                         array.put(o == null ? JSONObject.NULL : o);
-                        IOPackage ackMsg = IOPackage.buildAckPacket(endPoint, id + array.toString());
+                        IOPackage ackMsg =
+                                IOPackage.buildAckPacket(endPoint, id + array.toString());
                         sendPlain(ackMsg);
                     } catch (Exception e) {
-                        logger.info("You can only put values in IOAcknowledge.ack() which can be handled by JSONArray.put()");
+                        logger.info(
+                                "You can only put values in IOAcknowledge.ack() which can be handled by JSONArray.put()");
                         //error(new SocketIOException(
                         //        "You can only put values in IOAcknowledge.ack() which can be handled by JSONArray.put()",
                         //        e));
@@ -482,10 +490,8 @@ public class IOConnection {
     /**
      * Creates a new connection or returns the corresponding one.
      *
-     * @param origin
-     *            the origin
-     * @param socket
-     *            the socket
+     * @param origin the origin
+     * @param socket the socket
      * @return a IOConnection object
      */
     static public IOConnection register(String origin, SocketIO socket) {
@@ -511,10 +517,9 @@ public class IOConnection {
     /**
      * Connects a socket to the IOConnection.
      *
-     * @param socket
-     *            the socket to be connected
+     * @param socket the socket to be connected
      * @return true, if successfully registered on this transport, otherwise
-     *         false.
+     * false.
      */
     public synchronized boolean register(SocketIO socket) {
         String namespace = socket.getNamespace();
@@ -534,8 +539,7 @@ public class IOConnection {
      * Disconnect a socket from the IOConnection. Shuts down this IOConnection
      * if no further connections are available for this IOConnection.
      *
-     * @param socket
-     *            the socket to be shut down
+     * @param socket the socket to be shut down
      */
     public synchronized void unregister(SocketIO socket) {
         IOPackage message = IOPackage.buildDisconnectPacket(socket.getNamespace());

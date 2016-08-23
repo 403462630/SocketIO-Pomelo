@@ -7,5 +7,6 @@ package com.baidao.pomelo;
  */
 public interface Callback<T> {
     public void onSuccess(T t);
+
     public void onError();
 }

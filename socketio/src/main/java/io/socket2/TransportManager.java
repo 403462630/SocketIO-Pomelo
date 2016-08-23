@@ -94,7 +94,8 @@ class TransportManager {
     }
 
     private void resendIOPackage(IOPackage message) {
-        if (message.getFailedCount() < connection.getStrategy().maxResendCount() && message.hasResendHandler()) {
+        if (message.getFailedCount() < connection.getStrategy().maxResendCount()
+                && message.hasResendHandler()) {
             message.setFailedCount(message.getFailedCount() + 1);
             sendIOPackage(message);
         } else {

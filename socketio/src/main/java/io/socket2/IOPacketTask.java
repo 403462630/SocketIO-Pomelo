@@ -29,12 +29,14 @@ public class IOPacketTask {
 
     public void execute() {
         if (message == null) {
-            return ;
+            return;
         }
         TimerTask task = new TimerTask() {
             @Override
             public void run() {
-                logger.info("send text time out, message = " + message.getType() + ":"  + message.getId() + ":" + message.getEndPoint());
+                logger.info(
+                        "send text time out, message = " + message.getType() + ":" + message.getId()
+                                + ":" + message.getEndPoint());
                 message.setExpread(true);
                 transportManager.handleTimeOuPackage(message);
             }
